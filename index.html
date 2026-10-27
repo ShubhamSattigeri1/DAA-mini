@@ -36,6 +36,22 @@
 
         <p class="helper-text">Enter <strong>0</strong> for an empty cell.</p>
         <div class="board-wrap">
+          <div class="solver-animation" id="solver-animation" hidden aria-hidden="true">
+            <div class="logic-loader">
+              <div class="logic-orbit" aria-hidden="true">
+                <span>Σ</span>
+                <span>∴</span>
+                <span>↔</span>
+              </div>
+              <div class="logic-grid" aria-hidden="true">
+                <span>1</span><span class="candidate">?</span><span>3</span>
+                <span class="candidate">?</span><span>5</span><span class="candidate">?</span>
+                <span>7</span><span class="candidate">?</span><span>9</span>
+              </div>
+              <p class="logic-title">Finding the pattern</p>
+              <p class="logic-caption">Testing possibilities · applying constraints</p>
+            </div>
+          </div>
           <div class="sudoku-board" id="puzzle-board" aria-label="Sudoku puzzle"></div>
         </div>
 
@@ -61,8 +77,7 @@
           sends the grid as JSON to the local Python server, and the server launches
           the Java source file as a subprocess. The grid size is passed as an argument
           and the puzzle is sent over standard input. Java returns the solved grid on
-          standard output; validation and solving errors are returned on standard
-          error and shown in this interface.
+          standard output; validation and solving errors are shown in the interface.
         </p>
         <p class="note">
           The Java source-file launcher requires JDK 11 or newer. Each solve starts a

@@ -18,14 +18,19 @@ const EXAMPLE_BOARDS = {
   ],
 };
 
-const gridSizeSelect = document.querySelector("#grid-size");
 const puzzleBoard = document.querySelector("#puzzle-board");
 const solutionBoard = document.querySelector("#solution-board");
 const solutionSection = document.querySelector("#solution-section");
+const solverAnimation = document.querySelector("#solver-animation");
+const boardWrap = document.querySelector("#puzzle-board").parentElement;
 const solveButton = document.querySelector("#solve-button");
+const gridSizeSelect = document.querySelector("#grid-size");
+const loadExampleButton = document.querySelector("#load-example");
 const statusMessage = document.querySelector("#status-message");
 
 function clearResult() {
+  solverAnimation.hidden = true;
+  boardWrap.removeAttribute("aria-busy");
   solutionSection.hidden = true;
   solutionBoard.replaceChildren();
   statusMessage.textContent = "";
@@ -116,8 +121,14 @@ async function solvePuzzle() {
   }
 
   solveButton.disabled = true;
+  gridSizeSelect.disabled = true;
+  loadExampleButton.disabled = true;
+  puzzleBoard.querySelectorAll("input").forEach((input) => {
+    input.disabled = true;
+  });
+  solverAnimation.hidden = false;
+  boardWrap.setAttribute("aria-busy", "true");
   solveButton.textContent = "Solving…";
-  showStatus("The Java solver is working…");
   try {
     const response = await fetch("/api/solve", {
       method: "POST",
@@ -136,11 +147,18 @@ async function solvePuzzle() {
     showStatus(
       error instanceof TypeError
         ? "Could not reach the local solver. Make sure the Python server is running."
-        : "The local solver returned an invalid response.",
+        : error.message || "The local solver returned an invalid response.",
       true,
     );
   } finally {
     solveButton.disabled = false;
+    gridSizeSelect.disabled = false;
+    loadExampleButton.disabled = false;
+    puzzleBoard.querySelectorAll("input").forEach((input) => {
+      input.disabled = false;
+    });
+    solverAnimation.hidden = true;
+    boardWrap.removeAttribute("aria-busy");
     solveButton.textContent = "Solve puzzle";
   }
 }

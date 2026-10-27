@@ -176,8 +176,195 @@ h1 {
 }
 
 .board-wrap {
+  position: relative;
   overflow-x: auto;
   padding: 2px;
+}
+
+.solver-animation {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: #f5f7fbdc;
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+.logic-loader {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  width: min(100% - 12px, 310px);
+  padding: 12px 15px;
+  border: 1px solid #dfe6f5;
+  border-radius: 16px;
+  background: #ffffffed;
+  box-shadow: 0 12px 36px #263b671c;
+  text-align: center;
+}
+
+.logic-orbit {
+  position: absolute;
+  top: 12px;
+  display: grid;
+  width: 76px;
+  height: 76px;
+  place-items: center;
+  border: 1px dashed #9bb1e5;
+  border-radius: 50%;
+  animation: orbit-spin 8s linear infinite;
+}
+
+.logic-orbit::before,
+.logic-orbit::after {
+  position: absolute;
+  inset: 9px;
+  border: 1px solid #d4def3;
+  border-radius: 50%;
+  content: "";
+}
+
+.logic-orbit::after {
+  inset: -7px;
+  border-color: #e6ebf7;
+}
+
+.logic-orbit span {
+  position: absolute;
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border: 1px solid #d5e0fa;
+  border-radius: 50%;
+  background: #fff;
+  color: #355eb7;
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
+.logic-orbit span:nth-child(1) {
+  top: -11px;
+}
+
+.logic-orbit span:nth-child(2) {
+  right: -9px;
+  bottom: 12px;
+}
+
+.logic-orbit span:nth-child(3) {
+  bottom: 12px;
+  left: -9px;
+}
+
+.logic-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 58px;
+  height: 58px;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  overflow: hidden;
+  border: 2px solid #30466d;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 0 0 5px #fff;
+}
+
+.logic-grid span {
+  display: grid;
+  place-items: center;
+  border-right: 1px solid #d7deeb;
+  border-bottom: 1px solid #d7deeb;
+  color: #42526d;
+  font-size: 0.85rem;
+  font-weight: 700;
+  animation: cell-think 1.8s ease-in-out infinite;
+}
+
+.logic-grid .candidate {
+  color: #315ec4;
+  animation-name: candidate-think;
+}
+
+.logic-grid span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.logic-grid span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+.logic-grid span:nth-child(4) {
+  animation-delay: 0.6s;
+}
+
+.logic-grid span:nth-child(5) {
+  animation-delay: 0.8s;
+}
+
+.logic-grid span:nth-child(6) {
+  animation-delay: 1s;
+}
+
+.logic-grid span:nth-child(7) {
+  animation-delay: 1.2s;
+}
+
+.logic-grid span:nth-child(8) {
+  animation-delay: 1.4s;
+}
+
+.logic-grid span:nth-child(9) {
+  animation-delay: 1.6s;
+}
+
+.logic-title {
+  margin: 10px 0 3px;
+  color: #263b68;
+  font-size: 0.95rem;
+  font-weight: 750;
+}
+
+.logic-caption {
+  max-width: 250px;
+  margin: 0;
+  color: #69758b;
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+
+@keyframes orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes cell-think {
+  0%,
+  100% {
+    background: #fff;
+  }
+
+  50% {
+    background: #edf2ff;
+  }
+}
+
+@keyframes candidate-think {
+  0%,
+  100% {
+    color: #315ec4;
+    background: #f4f7ff;
+  }
+
+  50% {
+    color: #fff;
+    background: #5379d2;
+  }
 }
 
 .sudoku-board {
@@ -316,6 +503,17 @@ footer {
   color: #7a8496;
   font-size: 0.8rem;
   text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @media (max-width: 520px) {
