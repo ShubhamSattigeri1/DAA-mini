@@ -1,34 +1,40 @@
 from __future__ import annotations
 
+import json
+import os
 import subprocess
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-
-import pandas as pd
-import streamlit as st
+from typing import Any
 
 
-JAVA_SOLVER = Path(__file__).parent / "java" / "SudokuSolver.java"
+PROJECT_DIR = Path(__file__).parent
+JAVA_SOLVER = PROJECT_DIR / "java" / "SudokuSolver.java"
 JAVA_TIMEOUT_SECONDS = 30
+MAX_REQUEST_BYTES = 16_384
 
-EXAMPLE_BOARDS = {
-    4: [
-        [1, 0, 0, 4],
-        [0, 4, 1, 0],
-        [0, 1, 4, 0],
-        [4, 0, 0, 1],
-    ],
-    9: [
-        [5, 3, 0, 0, 7, 0, 0, 0, 0],
-        [6, 0, 0, 1, 9, 5, 0, 0, 0],
-        [0, 9, 8, 0, 0, 0, 0, 6, 0],
-        [8, 0, 0, 0, 6, 0, 0, 0, 3],
-        [4, 0, 0, 8, 0, 3, 0, 0, 1],
-        [7, 0, 0, 0, 2, 0, 0, 0, 6],
-        [0, 6, 0, 0, 0, 0, 2, 8, 0],
-        [0, 0, 0, 4, 1, 9, 0, 0, 5],
-        [0, 0, 0, 0, 8, 0, 0, 7, 9],
-    ],
-}
+
+def read_grid(value: Any, size: Any) -> list[list[int]]:
+    if isinstance(size, bool) or not isinstance(size, int) or size not in (4, 9):
+        raise ValueError("Grid size must be 4 or 9.")
+    if not isinstance(value, list) or len(value) != size:
+        raise ValueError(f"The grid must contain exactly {size} rows.")
+
+    grid: list[list[int]] = []
+    for row in value:
+        if not isinstance(row, list) or len(row) != size:
+            raise ValueError(f"Every row must contain exactly {size} cells.")
+        parsed_row: list[int] = []
+        for cell in row:
+            if isinstance(cell, bool) or not isinstance(cell, int):
+                raise ValueError(
+                    "Every cell must contain a whole number from 0 to the grid size."
+                )
+            if not 0 <= cell <= size:
+                raise ValueError(f"Cell values must be whole numbers from 0 to {size}.")
+            parsed_row.append(cell)
+        grid.append(parsed_row)
+    return grid
 
 
 def solve_with_java(grid: list[list[int]]) -> list[list[int]]:
@@ -69,100 +75,82 @@ def solve_with_java(grid: list[list[int]]) -> list[list[int]]:
     return solution
 
 
-def read_grid(data: pd.DataFrame, size: int) -> list[list[int]]:
-    grid: list[list[int]] = []
-    for row_index in range(size):
-        row: list[int] = []
-        for column_index in range(size):
-            value = data.iat[row_index, column_index]
-            if pd.isna(value) or isinstance(value, bool):
-                raise ValueError("Every cell must contain a whole number from 0 to the grid size.")
-            try:
-                integer_value = int(value)
-            except (TypeError, ValueError, OverflowError) as error:
-                raise ValueError(
-                    "Every cell must contain a whole number from 0 to the grid size."
-                ) from error
-            if integer_value != value or not 0 <= integer_value <= size:
-                raise ValueError(f"Cell values must be whole numbers from 0 to {size}.")
-            row.append(integer_value)
-        grid.append(row)
-    return grid
+class SudokuHandler(BaseHTTPRequestHandler):
+    def do_GET(self) -> None:
+        assets = {
+            "/": ("index.html", "text/html; charset=utf-8"),
+            "/styles.css": ("styles.css", "text/css; charset=utf-8"),
+            "/script.js": ("script.js", "text/javascript; charset=utf-8"),
+        }
+        asset = assets.get(self.path)
+        if asset is None:
+            self.send_error(404, "Not found")
+            return
+
+        filename, content_type = asset
+        content = (PROJECT_DIR / filename).read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(content)))
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        self.wfile.write(content)
+
+    def do_POST(self) -> None:
+        if self.path != "/api/solve":
+            self.send_error(404, "Not found")
+            return
+        if self.headers.get_content_type() != "application/json":
+            self._send_json(415, {"error": "Content-Type must be application/json."})
+            return
+
+        content_length = self.headers.get("Content-Length")
+        try:
+            request_size = int(content_length) if content_length is not None else -1
+        except ValueError:
+            request_size = -1
+        if request_size < 0:
+            self._send_json(400, {"error": "A valid Content-Length is required."})
+            return
+        if request_size > MAX_REQUEST_BYTES:
+            self._send_json(413, {"error": "The request is too large."})
+            return
+
+        try:
+            payload = json.loads(self.rfile.read(request_size))
+            if not isinstance(payload, dict):
+                raise ValueError("The request must be a JSON object.")
+            grid = read_grid(payload.get("grid"), payload.get("size"))
+            solution = solve_with_java(grid)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            self._send_json(400, {"error": "The request body must contain valid JSON."})
+            return
+        except ValueError as error:
+            self._send_json(400, {"error": str(error)})
+            return
+        except RuntimeError as error:
+            self._send_json(500, {"error": str(error)})
+            return
+
+        self._send_json(200, {"solution": solution})
+
+    def _send_json(self, status: int, payload: dict[str, Any]) -> None:
+        content = json.dumps(payload).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(content)))
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        self.wfile.write(content)
 
 
-st.set_page_config(page_title="Mini Sudoku Solver", page_icon="🧩", layout="centered")
-st.title("Mini Sudoku Solver")
-st.caption("Fill in a 4×4 or 9×9 puzzle and let the Java backtracking solver complete it.")
-
-if "board_size" not in st.session_state:
-    st.session_state.board_size = 9
-
-size = st.selectbox("Grid size", options=[4, 9], format_func=lambda value: f"{value}×{value}", key="board_size")
-grid_key = f"grid-{size}"
-
-if st.session_state.get("active_grid_size") != size:
-    st.session_state.grid_values = [row.copy() for row in EXAMPLE_BOARDS[size]]
-    st.session_state.active_grid_size = size
-    st.session_state.pop("solved_input", None)
-    st.session_state.pop("solution", None)
-
-if st.button("Load example puzzle"):
-    st.session_state.grid_values = [row.copy() for row in EXAMPLE_BOARDS[size]]
-    st.session_state.pop(grid_key, None)
-    st.session_state.pop("solved_input", None)
-    st.session_state.pop("solution", None)
-
-st.write("Enter **0** for an empty cell.")
-editor_data = st.data_editor(
-    pd.DataFrame(st.session_state.grid_values),
-    key=grid_key,
-    hide_index=True,
-    use_container_width=True,
-    num_rows="fixed",
-    column_config={
-        column: st.column_config.NumberColumn(
-            f"Column {column + 1}",
-            min_value=0,
-            max_value=size,
-            step=1,
-            format="%d",
-        )
-        for column in range(size)
-    },
-)
-
-if st.button("Solve", type="primary", use_container_width=True):
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", "8000"))
+    server = ThreadingHTTPServer(("127.0.0.1", port), SudokuHandler)
+    print(f"Mini Sudoku Solver is running at http://127.0.0.1:{port}")
     try:
-        puzzle = read_grid(editor_data, size)
-        solution = solve_with_java(puzzle)
-        st.session_state.solved_input = puzzle
-        st.session_state.solution = solution
-        st.success("Puzzle solved.")
-    except ValueError as error:
-        st.session_state.pop("solution", None)
-        st.error(str(error))
-    except RuntimeError as error:
-        st.session_state.pop("solution", None)
-        st.error(str(error))
-
-current_grid = None
-try:
-    current_grid = read_grid(editor_data, size)
-except ValueError:
-    pass
-
-if (
-    current_grid is not None
-    and current_grid == st.session_state.get("solved_input")
-    and st.session_state.get("solution") is not None
-):
-    st.subheader("Solved grid")
-    st.dataframe(
-        pd.DataFrame(st.session_state.solution),
-        hide_index=True,
-        use_container_width=True,
-        column_config={
-            column: st.column_config.NumberColumn(f"Column {column + 1}", format="%d")
-            for column in range(size)
-        },
-    )
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nStopping Mini Sudoku Solver.")
+    finally:
+        server.server_close()

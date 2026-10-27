@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f7fb">
+    <title>Mini Sudoku Solver</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/script.js" defer></script>
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="page-header">
+        <p class="eyebrow">A logic puzzle, solved step by step</p>
+        <h1>Mini Sudoku Solver</h1>
+        <p class="intro">Fill in a 4×4 or 9×9 puzzle and let the Java backtracking solver complete it.</p>
+      </header>
+
+      <nav class="tabs" aria-label="Main sections" role="tablist">
+        <button class="tab" id="solver-tab" type="button" role="tab"
+          aria-selected="true" aria-controls="solver-panel">Sudoku Solver</button>
+        <button class="tab" id="details-tab" type="button" role="tab"
+          aria-selected="false" aria-controls="details-panel">How it works</button>
+      </nav>
+
+      <section class="panel solver-panel" id="solver-panel" role="tabpanel"
+        aria-labelledby="solver-tab">
+        <div class="controls">
+          <label for="grid-size">Grid size</label>
+          <select id="grid-size" name="grid-size">
+            <option value="4">4×4</option>
+            <option value="9" selected>9×9</option>
+          </select>
+          <button class="button button-secondary" id="load-example" type="button">Load example puzzle</button>
+        </div>
+
+        <p class="helper-text">Enter <strong>0</strong> for an empty cell.</p>
+        <div class="board-wrap">
+          <div class="sudoku-board" id="puzzle-board" aria-label="Sudoku puzzle"></div>
+        </div>
+
+        <div class="solve-row">
+          <button class="button button-primary" id="solve-button" type="button">Solve puzzle</button>
+          <p class="status-message" id="status-message" role="status" aria-live="polite"></p>
+        </div>
+
+        <section class="solution-section" id="solution-section" hidden>
+          <h2>Solved grid</h2>
+          <div class="board-wrap">
+            <div class="sudoku-board solved-board" id="solution-board" aria-label="Solved Sudoku grid"></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="panel details-panel" id="details-panel" role="tabpanel"
+        aria-labelledby="details-tab" hidden>
+        <h2>How it works</h2>
+        <p>
+          The app is split into an HTML/CSS/JavaScript frontend and a Java solver.
+          When you select <strong>Solve</strong>, the frontend validates the cell values,
+          sends the grid as JSON to the local Python server, and the server launches
+          the Java source file as a subprocess. The grid size is passed as an argument
+          and the puzzle is sent over standard input. Java returns the solved grid on
+          standard output; validation and solving errors are returned on standard
+          error and shown in this interface.
+        </p>
+        <p class="note">
+          The Java source-file launcher requires JDK 11 or newer. Each solve starts a
+          new Java process and has a 30-second timeout.
+        </p>
+
+        <h2>Backtracking algorithm</h2>
+        <p>
+          Backtracking builds a solution one empty cell at a time. At each step, the
+          solver finds a legal value, tentatively places it, and continues recursively.
+          If that choice eventually leaves an empty cell with no legal values, it
+          undoes the placement and tries another candidate. If every candidate fails,
+          it reports that the puzzle is unsolvable.
+        </p>
+        <ol>
+          <li><strong>Validate clues:</strong> Check that every given number is in range and that no number is repeated in a row, column, or sub-grid.</li>
+          <li><strong>Choose an empty cell:</strong> Scan the remaining empty cells and select the one with the fewest legal values. This is the <em>minimum remaining values</em> (MRV) heuristic; it tends to expose dead ends early.</li>
+          <li><strong>Try candidates:</strong> Test values from <code>1</code> to the grid size against the row, column, and sub-grid constraint tables.</li>
+          <li><strong>Recurse or undo:</strong> Mark a candidate as occupied and recurse. If it fails, clear the cell and its constraint marks, then try the next candidate.</li>
+          <li><strong>Finish:</strong> When no empty cell remains, all constraints are satisfied and the completed grid is returned.</li>
+        </ol>
+        <p>
+          The Java solver keeps the grid in a two-dimensional integer array and tracks
+          used values with boolean lookup tables for rows, columns, and sub-grids.
+          These tables make each candidate legality check constant time. The solver
+          modifies the grid in place and undoes failed choices instead of copying the
+          whole board.
+        </p>
+
+        <h2>Time and space complexity</h2>
+        <p>
+          Let <strong>N</strong> be the grid width (4 or 9) and <strong>E</strong> the
+          number of empty cells. A loose worst-case search bound is
+          <strong>O(N<sup>E+3</sup>)</strong>: there can be up to N candidate choices
+          for each empty cell (O(N<sup>E</sup>) search nodes), and this implementation
+          scans up to N² cells and checks up to N values per cell to choose the MRV
+          cell (O(N³) per node). This is an upper bound, not a prediction of typical
+          runtime; clue constraints and MRV usually prune the search substantially.
+        </p>
+        <p>
+          The board and row/column/sub-grid lookup tables use <strong>O(N²)</strong>
+          space. Recursive search uses up to <strong>O(E)</strong> stack frames;
+          candidate lists held by those frames use up to <strong>O(E × N)</strong>
+          additional space. Validation before the search takes <strong>O(N²)</strong>
+          time.
+        </p>
+
+        <h2>Input and error handling</h2>
+        <ul>
+          <li>Use <code>0</code> for an empty cell and values from <code>1</code> through the selected grid size.</li>
+          <li>The frontend rejects fractional, missing, or out-of-range values before starting Java.</li>
+          <li>The backend checks the grid dimensions, numeric values, and duplicate clues.</li>
+          <li>A well-formed board with no valid completion is reported as unsolvable.</li>
+          <li>Missing Java, process timeouts, and malformed solver responses are surfaced as errors instead of displaying a false solution.</li>
+        </ul>
+      </section>
+      <footer>Built with a local Python server and Java backtracking.</footer>
+    </main>
+  </body>
+</html>

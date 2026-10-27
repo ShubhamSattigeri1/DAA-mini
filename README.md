@@ -1,8 +1,9 @@
 # Mini Sudoku Solver
 
-A Streamlit interface for 4×4 and 9×9 Sudoku puzzles, backed by a Java
-backtracking solver. The frontend passes the grid to the Java program through
-standard input and displays the returned solution.
+A browser-based interface for 4×4 and 9×9 Sudoku puzzles, backed by a Java
+backtracking solver. The HTML, CSS, and JavaScript frontend sends the grid to a
+local Python server, which passes it to the Java program through standard input
+and displays the returned solution.
 
 ## Requirements
 
@@ -11,16 +12,15 @@ standard input and displays the returned solution.
 
 ## Setup
 
-From the project directory, create and activate a virtual environment, then
-install the Python dependencies:
+From the project directory, create and activate a virtual environment if desired:
 
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
 ```
 
-Check that Java is installed:
+The Python server uses only the standard library, so no Python packages need to
+be installed. Check that Java is installed:
 
 ```powershell
 java -version
@@ -31,16 +31,19 @@ directly.
 
 ## Run
 
-Start the Streamlit app from the project directory:
+Start the local web server from the project directory:
 
 ```powershell
-python -m streamlit run app.py
+python app.py
 ```
 
-Choose a 4×4 or 9×9 grid, enter values from `1` through the selected size, and
-leave empty cells as `0`. Use **Load example puzzle** to restore the example,
-then select **Solve**. Duplicate values, malformed input, unsolvable puzzles,
-missing Java, and solver failures are reported in the interface.
+Open <http://127.0.0.1:8000> in your browser. Choose a 4×4 or 9×9 grid, enter
+values from `1` through the selected size, and leave empty cells as `0`. Use
+**Load example puzzle** to restore the example, then select **Solve puzzle**.
+Duplicate values, malformed input, unsolvable puzzles, missing Java, and solver
+failures are reported in the interface. Open the **How it works** tab for the
+backtracking steps, Java/Python integration details, input validation behavior,
+and time/space complexity.
 
 ## Run the Java backend directly
 
